@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Kutay Store | Ödeme Simülasyonu</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <style>
+        body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+        .navbar { background: #ff6000; color: white; }
+        .product-card { border: none; border-radius: 15px; transition: 0.3s; background: white; }
+        .product-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .btn-buy { background: #ff6000; color: white; border-radius: 20px; transition: background-color 0.3s; }
+        .btn-buy:hover { background: #e55600; }
+        .modal-body { padding: 2rem; }
+        
+        /* KART FİLİP ANİMASYONU */
+        .credit-card-container { perspective: 1000px; width: 320px; height: 200px; margin: 2rem auto; }
+        .credit-card { width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.6s; position: relative; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .credit-card.flipped { transform: rotateY(180deg); }
+        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 15px; display: flex; flex-direction: column; justify-content: space-between; padding: 1.5rem; color: white; }
+        .card-front { background: linear-gradient(45deg, #4CAF50, #8BC34A); } /* Yeşil kart */
+        .card-back { background: linear-gradient(45deg, #3F51B5, #2196F3); transform: rotateY(180deg); } /* Mavi kart */
+        .card-logo { font-size: 2rem; text-align: right; }
+        .card-number { font-size: 1.5rem; letter-spacing: 3px; }
+        .card-name, .card-date { font-size: 0.9rem; }
+        .card-chip { width: 40px; height: 30px; background: gold; border-radius: 5px; }
+        .card-black-strip { height: 40px; background: #333; width: 100%; margin-top: 2rem; }
+        .card-cvv { background: white; color: #333; padding: 5px 10px; border-radius: 5px; text-align: right; margin-top: 10px; }
+    </style>
+</head>
+<body>
+<nav class="navbar p-3 shadow-sm text-white mb-4"><div class="container fw-bold h4"><i class="fas fa-credit-card me-2"></i>KUTAY MARKET</div></nav>
+
+<div class="container">
+    <div id="liveTrack" class="alert alert-primary d-none shadow-sm animate__animated animate__fadeIn">
+        <strong>Sipariş Durumu:</strong> <span id="statusText">Beklemede</span>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-4 g-4">
+        {% for p in products %}
+        <div class="col">
+            <div class="card product-card p-3 text-center h-100">
+                <i class="fas fa-box-open fa-3x text-muted mb-2"></i>
+                <h6 class="fw-bold">{{ p.name }}</h6>
+                <p class="text-primary">{{ p.price }} TL</p>
+                <button class="btn btn-buy btn-sm w-100" onclick="openPaymentModal('{{ p.name }}')">Satın Al</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white text-center">
+                <h5 class="modal-title w-100">Ödemeyi Tamamla</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-center fw-bold fs-5 mb-4" id="selectedProductName"></p>
+
+                <div class="credit-card-container">
+                    <div class="credit-card" id="creditCardVisual">
+                        <div class="card-face card-front">
+                            <div><div class="card-chip"></div></div>
+                            <div class="card-number" id="displayCardNumber">**** **** **** ****</div>
+                            <div class="d-flex justify-content-between">
+                                <span class="card-name" id="displayCardName">KART SAHİBİ ADI</span>
+                                <span class="card-date" id="displayCardDate">MM/YY</span>
+                            </div>
+                        </div>
+                        <div class="card-face card-back">
+                            <div class="card-black-strip"></div>
+                            <div class="text-end me-3">CVV</div>
+                            <div class="card-cvv" id="displayCVV">***</div>
+                            <div class="text-end small">Kutay Market A.Ş.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <div class="mb-3">
+                        <label class="form-label small">Kart Numarası</label>
+                        <input type="text" id="cardNumber" class="form-control" placeholder="XXXX XXXX XXXX XXXX" maxlength="19">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Kart Sahibi Adı</label>
+                        <input type="text" id="cardName" class="form-control" placeholder="Ad Soyad">
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Son Kullanma Tarihi</label>
+                            <input type="text" id="cardDate" class="form-control" placeholder="MM/YY" maxlength="5">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">CVV</label>
+                            <input type="text" id="cardCVV" class="form-control" placeholder="***" maxlength="3">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Telefon Numarası</label>
+                        <input type="text" id="customerPhone" class="form-control" placeholder="05XX XXX XX XX">
+                    </div>
+                    
+                    <button class="btn btn-buy w-100 py-2 mt-3" onclick="processPayment()">
+                        <i class="fas fa-lock me-2"></i> Güvenli Ödeme Yap
+                    </button>
+                    <div id="paymentStatus" class="mt-3 text-center d-none">
+                        <div class="spinner-border text-success spinner-border-sm me-2" role="status"></div>
+                        <span class="text-muted">Ödeme Doğrulanıyor...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let currentProduct = "";
+    const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+
+    function openPaymentModal(productName) {
+        currentProduct = productName;
+        document.getElementById('selectedProductName').innerText = "Ödenecek Ürün: " + productName;
+        // Formu temizle
+        document.getElementById('cardNumber').value = '';
+        document.getElementById('cardName').value = '';
+        document.getElementById('cardDate').value = '';
+        document.getElementById('cardCVV').value = '';
+        document.getElementById('customerPhone').value = '';
+        document.getElementById('paymentStatus').classList.add('d-none');
+        document.getElementById('creditCardVisual').classList.remove('flipped'); // Kartı öne çevir
+        paymentModal.show();
+    }
+
+    // Kart görselini güncelleme fonksiyonları
+    document.getElementById('cardNumber').addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '').match(/.{1,4}/g);
+        e.target.value = value ? value.join(' ') : '';
+        document.getElementById('displayCardNumber').innerText = e.target.value.padEnd(19, '*').replace(/\s/g, ' ');
+    });
+
+    document.getElementById('cardName').addEventListener('input', function(e) {
+        document.getElementById('displayCardName').innerText = e.target.value.toUpperCase() || 'KART SAHİBİ ADI';
+    });
+
+    document.getElementById('cardDate').addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '').match(/.{1,2}/g);
+        if (value && value.length > 1) {
+             e.target.value = value[0] + '/' + value[1];
+        } else if (value) {
+            e.target.value = value[0];
+        } else {
+            e.target.value = '';
+        }
+        document.getElementById('displayCardDate').innerText = e.target.value.padEnd(5, '*') || 'MM/YY';
+    });
+
+    document.getElementById('cardCVV').addEventListener('focus', function() {
+        document.getElementById('creditCardVisual').classList.add('flipped');
+    });
+
+    document.getElementById('cardCVV').addEventListener('blur', function() {
+        document.getElementById('creditCardVisual').classList.remove('flipped');
+    });
+
+    document.getElementById('cardCVV').addEventListener('input', function(e) {
+        document.getElementById('displayCVV').innerText = e.target.value.padEnd(3, '*') || '***';
+    });
+
+    async function processPayment() {
+        // Form Doğrulamaları (Basit)
+        const cardNumber = document.getElementById('cardNumber').value;
+        const cardName = document.getElementById('cardName').value;
+        const cardDate = document.getElementById('cardDate').value;
+        const cardCVV = document.getElementById('cardCVV').value;
+        const customerPhone = document.getElementById('customerPhone').value;
+
+        if (!cardNumber || !cardName || !cardDate || !cardCVV || !customerPhone) {
+            alert("Lütfen tüm ödeme bilgilerini doldurun!");
+            return;
+        }
+        if (cardNumber.length < 19 || cardCVV.length < 3) {
+            alert("Lütfen geçerli kart bilgileri girin!");
+            return;
+        }
+
+        document.getElementById('paymentStatus').classList.remove('d-none');
+        // Sahte ödeme gecikmesi (gerçekçi bir his için)
+        await new Promise(resolve => setTimeout(resolve, 2000)); 
+
+        const orderData = {
+            customer: cardName, // Kart sahibi adını müşteri olarak alalım
+            phone: customerPhone,
+            product_name: currentProduct
+        };
+
+        try {
+            const response = await fetch('/create-order', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(orderData)
+            });
+            const result = await response.json();
+            
+            if (response.ok) {
+                document.getElementById('paymentStatus').innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Ödeme Başarılı!';
+                
+                // Müşteri canlı takip alanını göster
+                document.getElementById('liveTrack').classList.remove('d-none');
+                document.getElementById('statusText').innerText = 'Ödeme başarılı, siparişiniz bekleniyor.';
+
+                // Kargoya verilince güncelleme için sürekli sorgulama
+                const trackingInterval = setInterval(async () => {
+                    const statusRes = await fetch('/check-status/' + result.order_id);
+                    const statusData = await statusRes.json();
+                    document.getElementById('statusText').innerText = statusData.status;
+
+                    if (statusData.status === 'Kargoda') {
+                        document.getElementById('liveTrack').className = "alert alert-success shadow-lg animate__animated animate__tada";
+                        document.getElementById('liveTrack').innerHTML = '<h5><i class="fas fa-truck me-2"></i>SİPARİŞİNİZ KARGOYA VERİLDİ!</h5><p class="mb-0">Paketiniz yola çıktı, iyi alışverişler dileriz.</p>';
+                        clearInterval(trackingInterval);
+                        paymentModal.hide(); // Ödeme modalını kapat
+                    }
+                }, 3000);
+            } else {
+                document.getElementById('paymentStatus').innerHTML = '<i class="fas fa-times-circle text-danger me-2"></i>Ödeme Hatası!';
+                document.getElementById('paymentStatus').classList.add('animate__animated', 'animate__headShake');
+            }
+        } catch (error) {
+            console.error("Sipariş gönderme hatası:", error);
+            document.getElementById('paymentStatus').innerHTML = '<i class="fas fa-exclamation-triangle text-danger me-2"></i>Bir sorun oluştu!';
+        }
+    }
+</script>
+</body>
+</html>
